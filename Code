@@ -1,1 +1,40 @@
 import pandas as pd
+import numpy as np
+
+FY18 = pd.read_excel(r'https://www.eia.gov/petroleum/imports/companylevel/archive/2018/data/impa18d.xlsx')
+FY19 = pd.read_excel(r'https://www.eia.gov/petroleum/imports/companylevel/archive/2019/data/impa19d_prel.xlsx')
+Jan20 = pd.read_excel(r'https://www.eia.gov/petroleum/imports/companylevel/archive/2020/2020_01/data/import.xlsx')
+Feb20 = pd.read_excel(r'https://www.eia.gov/petroleum/imports/companylevel/archive/2020/2020_02/data/import.xlsx')
+Mar20 = pd.read_excel(r'https://www.eia.gov/petroleum/imports/companylevel/archive/2020/2020_03/data/import.xlsx')
+Apr20 = pd.read_excel(r'https://www.eia.gov/petroleum/imports/companylevel/archive/2020/2020_04/data/import.xlsx')
+May20 = pd.read_excel(r'https://www.eia.gov/petroleum/imports/companylevel/archive/2020/2020_05/data/import.xlsx')
+Frames = [FY18, FY19,Jan20,Feb20,Mar20,Apr20,May20]
+Data = pd.concat(Frames)
+Prod_dict = Data.set_index('PROD_CODE')['PROD_NAME'].to_dict()
+Data['Site'] = Data['PCOMP_RNAM'] + " - " + Data['PCOMP_SNAM']
+Data['KBD'] = Data['QUANTITY'] / Data['RPT_PERIOD'].dt.day
+
+def ShowImports(Product,PADD,Field):
+  ShowImports = Data[Data['PROD_CODE']==Product]
+  ShowImports = ShowImports[ShowImports['PORT_PADD']==PADD]
+  ShowImports = ShowImports.pivot_table(index='RPT_PERIOD',
+                                        columns=Field,
+                                        values='KBD',
+                                        aggfunc=np.sum)
+  ShowImports = ShowImports.rename_axis('PADD ' + str(PADD) + ' imports of ' + Prod_dict[Product] + ' (KBD)')
+  ShowImports = ShowImports.fillna(0)
+  ShowImports['Total'] = ShowImports.sum(axis=1)
+  ShowImports = ShowImports.round()
+  return ShowImports
+
+Test = ShowImports(25,5,'Site')
+
+Capacities = pd.read_excel(r'https://www.eia.gov/petroleum/refinerycapacity/refcap20.xls')
+
+Capacities['Owner + Site'] = Capacities['CORPORATION'] + " - " + Capacities['SITE']
+Capacities['Supply + Product'] = Capacities['SUPPLY'] + " - " + Capacities['PRODUCT']
+
+Capacities.pivot_table(index='Owner + Site',
+                       columns='Supply + Product',
+                       values='QUANTITY',
+                       aggfunc=np.sum)
